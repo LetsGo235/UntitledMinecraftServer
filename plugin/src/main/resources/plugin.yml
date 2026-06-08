@@ -9,3 +9,6 @@ commands:
   uds:
     description: Main UntitledDungeons command
     usage: /uds
+  ditem:
+    description: Custom item command
+    usage: /ditem give <player> <item_id>

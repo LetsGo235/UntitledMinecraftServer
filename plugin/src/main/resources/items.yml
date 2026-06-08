@@ -1,0 +1,16 @@
+ember_blade:
+  material: DIAMOND_SWORD
+  display_name: "&6Ember Blade"
+  rarity: RARE
+  stats:
+    damage: 35
+    strength: 20
+    intelligence: 50
+  ability:
+    id: flame_dash
+    trigger: RIGHT_CLICK
+    mana_cost: 40
+    cooldown_seconds: 4
+  lore:
+    - "&7A blade forged in the first dungeon."
+    - "&8Ability data exists, but does not activate yet."
