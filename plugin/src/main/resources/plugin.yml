@@ -1,0 +1,11 @@
+name: UntitledDungeons
+version: 0.1.0
+main: com.untitledmc.dungeons.UntitledDungeonsPlugin
+api-version: '1.21'
+author: theme
+description: Core dungeon plugin for Untitled Minecraft Server
+
+commands:
+  uds:
+    description: Main UntitledDungeons command
+    usage: /uds
