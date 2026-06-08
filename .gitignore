@@ -1,10 +1,7 @@
-# Gradle
-.gradle/
-build/
-
-# IntelliJ
+# IntelliJ / IDE
 .idea/
 *.iml
+.vscode/
 
 # VS Code
 .vscode/
@@ -18,3 +15,15 @@ logs/
 # OS
 Thumbs.db
 .DS_Store
+
+# Server files
+server/
+cache/
+
+# Builds
+build/
+.gradle/
+
+# Plugin jars
+*.jar
+
