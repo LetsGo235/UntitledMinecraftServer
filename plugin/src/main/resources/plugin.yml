@@ -13,6 +13,10 @@ commands:
   ditem:
     description: Custom item command
     usage: /ditem give <player> <item_id>
+  dmob:
+    description: Custom mob command
+    usage: /dmob spawn <mob_id>
+    permission: untitleddungeons.admin
 
 permissions:
   untitleddungeons.use:

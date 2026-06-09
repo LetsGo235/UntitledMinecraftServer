@@ -10,6 +10,9 @@ import com.untitledmc.dungeons.item.ItemBuilder;
 import com.untitledmc.dungeons.item.ItemLoreRenderer;
 import com.untitledmc.dungeons.item.command.DItemCommand;
 import com.untitledmc.dungeons.item.registry.ItemRegistry;
+import com.untitledmc.dungeons.mob.CustomMobService;
+import com.untitledmc.dungeons.mob.MobRegistry;
+import com.untitledmc.dungeons.mob.command.DMobCommand;
 import com.untitledmc.dungeons.stat.ActionBarService;
 import com.untitledmc.dungeons.stat.ManaService;
 import com.untitledmc.dungeons.stat.PlayerStatListener;
@@ -21,6 +24,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 public final class UntitledDungeonsPlugin extends JavaPlugin {
     private ItemRegistry itemRegistry;
+    private MobRegistry mobRegistry;
     private ManaService manaService;
     private ActionBarService actionBarService;
     private CooldownService cooldownService;
@@ -31,6 +35,8 @@ public final class UntitledDungeonsPlugin extends JavaPlugin {
 
         itemRegistry = new ItemRegistry(this);
         itemRegistry.load();
+        mobRegistry = new MobRegistry(this);
+        mobRegistry.load();
 
         NamespacedKey itemIdKey = new NamespacedKey(this, "item_id");
         ItemLoreRenderer loreRenderer = new ItemLoreRenderer();
@@ -50,12 +56,19 @@ public final class UntitledDungeonsPlugin extends JavaPlugin {
         cooldownService = new CooldownService();
         CombatDebugService combatDebugService = new CombatDebugService();
         DamageCalculator damageCalculator = new DamageCalculator();
+        CustomMobService customMobService = new CustomMobService(this, mobRegistry);
 
         UdsCommand udsCommand = new UdsCommand(this, itemRegistry, playerStatService, combatDebugService);
         PluginCommand command = getCommand("uds");
         if (command != null) {
             command.setExecutor(udsCommand);
             command.setTabCompleter(udsCommand);
+        }
+        DMobCommand dMobCommand = new DMobCommand(mobRegistry, customMobService);
+        PluginCommand dmobCommand = getCommand("dmob");
+        if (dmobCommand != null) {
+            dmobCommand.setExecutor(dMobCommand);
+            dmobCommand.setTabCompleter(dMobCommand);
         }
 
         getServer().getPluginManager().registerEvents(
@@ -71,7 +84,7 @@ public final class UntitledDungeonsPlugin extends JavaPlugin {
                 cooldownService
         ), this);
         getServer().getPluginManager().registerEvents(
-                new CombatListener(this, playerStatService, damageCalculator, combatDebugService),
+                new CombatListener(this, playerStatService, damageCalculator, combatDebugService, customMobService, mobRegistry),
                 this
         );
         manaService.start();

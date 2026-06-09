@@ -2,6 +2,10 @@ package com.untitledmc.dungeons.combat;
 
 import com.untitledmc.dungeons.stat.PlayerStatService;
 import com.untitledmc.dungeons.stat.PlayerStats;
+import com.untitledmc.dungeons.mob.CustomMob;
+import com.untitledmc.dungeons.mob.CustomMobService;
+import com.untitledmc.dungeons.mob.MobRegistry;
+import com.untitledmc.dungeons.stat.StatType;
 import java.util.Locale;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -24,35 +28,93 @@ public final class CombatListener implements Listener {
     private final PlayerStatService playerStatService;
     private final DamageCalculator damageCalculator;
     private final CombatDebugService combatDebugService;
+    private final CustomMobService customMobService;
+    private final MobRegistry mobRegistry;
 
     public CombatListener(
             JavaPlugin plugin,
             PlayerStatService playerStatService,
             DamageCalculator damageCalculator,
-            CombatDebugService combatDebugService
+            CombatDebugService combatDebugService,
+            CustomMobService customMobService,
+            MobRegistry mobRegistry
     ) {
         this.plugin = plugin;
         this.playerStatService = playerStatService;
         this.damageCalculator = damageCalculator;
         this.combatDebugService = combatDebugService;
+        this.customMobService = customMobService;
+        this.mobRegistry = mobRegistry;
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
-        if (!(event.getDamager() instanceof Player player)) {
+        if (event.getDamager() instanceof Player player) {
+            handlePlayerDamage(event, player);
             return;
         }
 
+        if (event.getEntity() instanceof Player player && event.getDamager() instanceof LivingEntity damager) {
+            handleCustomMobDamage(event, damager, player);
+        }
+    }
+
+    private void handlePlayerDamage(EntityDamageByEntityEvent event, Player player) {
         if (!(event.getEntity() instanceof LivingEntity target) || shouldIgnoreTarget(target)) {
             return;
         }
 
         PlayerStats stats = playerStatService.recalculate(player);
         DamageResult result = damageCalculator.calculate(stats);
+        if (customMobService.isCustomMob(target)) {
+            event.setCancelled(true);
+            customMobService.damageCustomMob(target, result.finalDamage());
+            customMobService.updateMobDisplayName(target);
+
+            sendCombatFeedback(player, result);
+            spawnDamageIndicator(target, result);
+            if (customMobService.getCurrentHealth(target) <= 0.0D) {
+                defeatCustomMob(player, target);
+            }
+            return;
+        }
+
         event.setDamage(result.finalDamage());
 
         sendCombatFeedback(player, result);
         spawnDamageIndicator(target, result);
+    }
+
+    private void handleCustomMobDamage(EntityDamageByEntityEvent event, LivingEntity damager, Player player) {
+        if (!customMobService.isCustomMob(damager)) {
+            return;
+        }
+
+        String mobId = customMobService.getCustomMobId(damager);
+        CustomMob mob = mobRegistry.getMob(mobId).orElse(null);
+        if (mob == null) {
+            return;
+        }
+
+        PlayerStats stats = playerStatService.recalculate(player);
+        double defense = Math.max(0.0D, stats.get(StatType.DEFENSE));
+        double finalDamage = Math.max(1.0D, mob.damage() * (100.0D / (100.0D + defense)));
+
+        event.setCancelled(true);
+        applyDirectDamage(player, finalDamage);
+        player.sendActionBar(Component.text(formatDamage(finalDamage) + " damage", NamedTextColor.RED));
+    }
+
+    private void defeatCustomMob(Player player, LivingEntity target) {
+        String mobId = customMobService.getCustomMobId(target);
+        String displayName = customMobService.getPlainDisplayName(mobId);
+        target.remove();
+        player.sendActionBar(Component.text("Defeated " + displayName + "!", NamedTextColor.GREEN));
+    }
+
+    private void applyDirectDamage(Player player, double finalDamage) {
+        double health = player.getHealth();
+        player.setHealth(Math.max(0.0D, health - finalDamage));
     }
 
     private boolean shouldIgnoreTarget(LivingEntity target) {

@@ -1,0 +1,35 @@
+cinder_grunt:
+  entity_type: ZOMBIE
+  display_name: "&cCinder Grunt"
+  level: 1
+  max_health: 250
+  damage: 20
+  defense: 0
+  movement_speed: 0.25
+  follow_range: 24
+  experience_reward: 5
+  coin_reward: 3
+
+cinder_brute:
+  entity_type: HUSK
+  display_name: "&6Cinder Brute"
+  level: 3
+  max_health: 800
+  damage: 45
+  defense: 10
+  movement_speed: 0.20
+  follow_range: 28
+  experience_reward: 15
+  coin_reward: 10
+
+cinder_mage:
+  entity_type: SKELETON
+  display_name: "&5Cinder Mage"
+  level: 2
+  max_health: 400
+  damage: 30
+  defense: 5
+  movement_speed: 0.23
+  follow_range: 30
+  experience_reward: 10
+  coin_reward: 6
