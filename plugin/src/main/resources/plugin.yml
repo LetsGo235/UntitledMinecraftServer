@@ -9,6 +9,15 @@ commands:
   uds:
     description: Main UntitledDungeons command
     usage: /uds
+    permission: untitleddungeons.use
   ditem:
     description: Custom item command
     usage: /ditem give <player> <item_id>
+
+permissions:
+  untitleddungeons.use:
+    description: Allows use of basic UntitledDungeons commands
+    default: true
+  untitleddungeons.admin:
+    description: Allows UntitledDungeons admin testing commands
+    default: op
