@@ -1,5 +1,8 @@
 package com.untitledmc.dungeons;
 
+import com.untitledmc.dungeons.ability.AbilityListener;
+import com.untitledmc.dungeons.ability.AbilityRegistry;
+import com.untitledmc.dungeons.ability.CooldownService;
 import com.untitledmc.dungeons.item.ItemBuilder;
 import com.untitledmc.dungeons.item.ItemLoreRenderer;
 import com.untitledmc.dungeons.item.command.DItemCommand;
@@ -17,6 +20,7 @@ public final class UntitledDungeonsPlugin extends JavaPlugin {
     private ItemRegistry itemRegistry;
     private ManaService manaService;
     private ActionBarService actionBarService;
+    private CooldownService cooldownService;
 
     @Override
     public void onEnable() {
@@ -38,6 +42,9 @@ public final class UntitledDungeonsPlugin extends JavaPlugin {
         PlayerStatService playerStatService = new PlayerStatService(itemRegistry, itemIdKey);
         manaService = new ManaService(this, playerStatService);
         actionBarService = new ActionBarService(this, playerStatService, manaService);
+        AbilityRegistry abilityRegistry = new AbilityRegistry();
+        abilityRegistry.registerDefaults();
+        cooldownService = new CooldownService();
 
         UdsCommand udsCommand = new UdsCommand(this, itemRegistry, playerStatService);
         PluginCommand command = getCommand("uds");
@@ -47,6 +54,14 @@ public final class UntitledDungeonsPlugin extends JavaPlugin {
         }
 
         getServer().getPluginManager().registerEvents(new PlayerStatListener(this, playerStatService, manaService), this);
+        getServer().getPluginManager().registerEvents(new AbilityListener(
+                itemIdKey,
+                itemRegistry,
+                playerStatService,
+                manaService,
+                abilityRegistry,
+                cooldownService
+        ), this);
         manaService.start();
         actionBarService.start();
 
