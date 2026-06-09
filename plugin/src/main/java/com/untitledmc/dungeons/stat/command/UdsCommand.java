@@ -1,5 +1,6 @@
 package com.untitledmc.dungeons.stat.command;
 
+import com.untitledmc.dungeons.combat.CombatDebugService;
 import com.untitledmc.dungeons.item.registry.ItemRegistry;
 import com.untitledmc.dungeons.stat.PlayerStatService;
 import com.untitledmc.dungeons.stat.PlayerStats;
@@ -21,11 +22,18 @@ public final class UdsCommand implements CommandExecutor, TabCompleter {
     private final JavaPlugin plugin;
     private final ItemRegistry itemRegistry;
     private final PlayerStatService playerStatService;
+    private final CombatDebugService combatDebugService;
 
-    public UdsCommand(JavaPlugin plugin, ItemRegistry itemRegistry, PlayerStatService playerStatService) {
+    public UdsCommand(
+            JavaPlugin plugin,
+            ItemRegistry itemRegistry,
+            PlayerStatService playerStatService,
+            CombatDebugService combatDebugService
+    ) {
         this.plugin = plugin;
         this.itemRegistry = itemRegistry;
         this.playerStatService = playerStatService;
+        this.combatDebugService = combatDebugService;
     }
 
     @Override
@@ -60,6 +68,17 @@ public final class UdsCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
+        if (args[0].equalsIgnoreCase("combatdebug")) {
+            if (!(sender instanceof Player player)) {
+                sender.sendMessage("Only players can use /uds combatdebug.");
+                return true;
+            }
+
+            boolean enabled = combatDebugService.toggle(player);
+            sender.sendMessage("Combat debug " + (enabled ? "enabled" : "disabled") + ".");
+            return true;
+        }
+
         if (args.length == 2 && args[0].equalsIgnoreCase("recalculatestats")) {
             if (!sender.hasPermission("untitleddungeons.admin")) {
                 sender.sendMessage("You do not have permission to use this command.");
@@ -77,7 +96,7 @@ public final class UdsCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        sender.sendMessage("Usage: /uds status, /uds reload, /uds stats, or /uds recalculatestats <player>");
+        sender.sendMessage("Usage: /uds status, /uds reload, /uds stats, /uds combatdebug, or /uds recalculatestats <player>");
         return true;
     }
 
@@ -89,7 +108,7 @@ public final class UdsCommand implements CommandExecutor, TabCompleter {
             @NotNull String[] args
     ) {
         if (args.length == 1) {
-            return matching(args[0], List.of("status", "reload", "stats", "recalculatestats"));
+            return matching(args[0], List.of("status", "reload", "stats", "combatdebug", "recalculatestats"));
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("recalculatestats")) {

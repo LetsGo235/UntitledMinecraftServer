@@ -3,6 +3,9 @@ package com.untitledmc.dungeons;
 import com.untitledmc.dungeons.ability.AbilityListener;
 import com.untitledmc.dungeons.ability.AbilityRegistry;
 import com.untitledmc.dungeons.ability.CooldownService;
+import com.untitledmc.dungeons.combat.CombatDebugService;
+import com.untitledmc.dungeons.combat.CombatListener;
+import com.untitledmc.dungeons.combat.DamageCalculator;
 import com.untitledmc.dungeons.item.ItemBuilder;
 import com.untitledmc.dungeons.item.ItemLoreRenderer;
 import com.untitledmc.dungeons.item.command.DItemCommand;
@@ -45,15 +48,20 @@ public final class UntitledDungeonsPlugin extends JavaPlugin {
         AbilityRegistry abilityRegistry = new AbilityRegistry();
         abilityRegistry.registerDefaults();
         cooldownService = new CooldownService();
+        CombatDebugService combatDebugService = new CombatDebugService();
+        DamageCalculator damageCalculator = new DamageCalculator();
 
-        UdsCommand udsCommand = new UdsCommand(this, itemRegistry, playerStatService);
+        UdsCommand udsCommand = new UdsCommand(this, itemRegistry, playerStatService, combatDebugService);
         PluginCommand command = getCommand("uds");
         if (command != null) {
             command.setExecutor(udsCommand);
             command.setTabCompleter(udsCommand);
         }
 
-        getServer().getPluginManager().registerEvents(new PlayerStatListener(this, playerStatService, manaService), this);
+        getServer().getPluginManager().registerEvents(
+                new PlayerStatListener(this, playerStatService, manaService, combatDebugService),
+                this
+        );
         getServer().getPluginManager().registerEvents(new AbilityListener(
                 itemIdKey,
                 itemRegistry,
@@ -62,6 +70,10 @@ public final class UntitledDungeonsPlugin extends JavaPlugin {
                 abilityRegistry,
                 cooldownService
         ), this);
+        getServer().getPluginManager().registerEvents(
+                new CombatListener(this, playerStatService, damageCalculator, combatDebugService),
+                this
+        );
         manaService.start();
         actionBarService.start();
 

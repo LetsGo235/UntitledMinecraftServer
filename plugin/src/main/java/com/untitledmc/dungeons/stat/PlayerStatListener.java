@@ -1,5 +1,6 @@
 package com.untitledmc.dungeons.stat;
 
+import com.untitledmc.dungeons.combat.CombatDebugService;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -18,11 +19,18 @@ public final class PlayerStatListener implements Listener {
     private final JavaPlugin plugin;
     private final PlayerStatService playerStatService;
     private final ManaService manaService;
+    private final CombatDebugService combatDebugService;
 
-    public PlayerStatListener(JavaPlugin plugin, PlayerStatService playerStatService, ManaService manaService) {
+    public PlayerStatListener(
+            JavaPlugin plugin,
+            PlayerStatService playerStatService,
+            ManaService manaService,
+            CombatDebugService combatDebugService
+    ) {
         this.plugin = plugin;
         this.playerStatService = playerStatService;
         this.manaService = manaService;
+        this.combatDebugService = combatDebugService;
     }
 
     @EventHandler
@@ -35,6 +43,7 @@ public final class PlayerStatListener implements Listener {
     public void onPlayerQuit(PlayerQuitEvent event) {
         playerStatService.clear(event.getPlayer());
         manaService.clear(event.getPlayer());
+        combatDebugService.clear(event.getPlayer());
     }
 
     @EventHandler
