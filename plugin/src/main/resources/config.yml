@@ -1,2 +1,6 @@
 debug: true
 server-name: "Untitled Minecraft Server"
+combat:
+  mob_knockback: 0.3
+  mob_knockback_vertical: 0.08
+  minimum_damage: 1.0

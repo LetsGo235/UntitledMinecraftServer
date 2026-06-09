@@ -58,7 +58,7 @@ public final class UntitledDungeonsPlugin extends JavaPlugin {
         DamageCalculator damageCalculator = new DamageCalculator();
         CustomMobService customMobService = new CustomMobService(this, mobRegistry);
 
-        UdsCommand udsCommand = new UdsCommand(this, itemRegistry, playerStatService, combatDebugService);
+        UdsCommand udsCommand = new UdsCommand(this, itemRegistry, mobRegistry, playerStatService, combatDebugService);
         PluginCommand command = getCommand("uds");
         if (command != null) {
             command.setExecutor(udsCommand);

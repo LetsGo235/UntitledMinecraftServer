@@ -3,7 +3,7 @@ cinder_grunt:
   display_name: "&cCinder Grunt"
   level: 1
   max_health: 250
-  damage: 20
+  damage: 4
   defense: 0
   movement_speed: 0.25
   follow_range: 24
@@ -15,7 +15,7 @@ cinder_brute:
   display_name: "&6Cinder Brute"
   level: 3
   max_health: 800
-  damage: 45
+  damage: 8
   defense: 10
   movement_speed: 0.20
   follow_range: 28
@@ -27,7 +27,7 @@ cinder_mage:
   display_name: "&5Cinder Mage"
   level: 2
   max_health: 400
-  damage: 30
+  damage: 6
   defense: 5
   movement_speed: 0.23
   follow_range: 30

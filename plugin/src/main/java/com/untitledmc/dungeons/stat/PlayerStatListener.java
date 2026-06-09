@@ -35,7 +35,7 @@ public final class PlayerStatListener implements Listener {
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
-        playerStatService.recalculate(event.getPlayer());
+        recalculateNow(event.getPlayer());
         manaService.initialize(event.getPlayer());
     }
 

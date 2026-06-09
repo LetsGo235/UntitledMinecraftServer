@@ -11,17 +11,23 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.NamespacedKey;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityShootBowEvent;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.util.Vector;
 
 public final class CombatListener implements Listener {
     private final JavaPlugin plugin;
@@ -30,6 +36,8 @@ public final class CombatListener implements Listener {
     private final CombatDebugService combatDebugService;
     private final CustomMobService customMobService;
     private final MobRegistry mobRegistry;
+    private final NamespacedKey projectileMobIdKey;
+    private final NamespacedKey projectileDamageKey;
 
     public CombatListener(
             JavaPlugin plugin,
@@ -45,6 +53,8 @@ public final class CombatListener implements Listener {
         this.combatDebugService = combatDebugService;
         this.customMobService = customMobService;
         this.mobRegistry = mobRegistry;
+        this.projectileMobIdKey = new NamespacedKey(plugin, "custom_mob_projectile_id");
+        this.projectileDamageKey = new NamespacedKey(plugin, "custom_mob_projectile_damage");
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -54,9 +64,35 @@ public final class CombatListener implements Listener {
             return;
         }
 
+        if (event.getEntity() instanceof Player player && event.getDamager() instanceof Projectile projectile) {
+            handleCustomMobProjectileDamage(event, projectile, player);
+            return;
+        }
+
         if (event.getEntity() instanceof Player player && event.getDamager() instanceof LivingEntity damager) {
             handleCustomMobDamage(event, damager, player);
         }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onEntityShootBow(EntityShootBowEvent event) {
+        if (!(event.getEntity() instanceof LivingEntity shooter) || !customMobService.isCustomMob(shooter)) {
+            return;
+        }
+
+        if (!(event.getProjectile() instanceof Projectile projectile)) {
+            return;
+        }
+
+        String mobId = customMobService.getCustomMobId(shooter);
+        CustomMob mob = mobRegistry.getMob(mobId).orElse(null);
+        if (mob == null) {
+            return;
+        }
+
+        PersistentDataContainer data = projectile.getPersistentDataContainer();
+        data.set(projectileMobIdKey, PersistentDataType.STRING, mob.id());
+        data.set(projectileDamageKey, PersistentDataType.DOUBLE, mob.damage());
     }
 
     private void handlePlayerDamage(EntityDamageByEntityEvent event, Player player) {
@@ -69,6 +105,7 @@ public final class CombatListener implements Listener {
         if (customMobService.isCustomMob(target)) {
             event.setCancelled(true);
             customMobService.damageCustomMob(target, result.finalDamage());
+            applyCustomMobKnockback(player, target);
             customMobService.updateMobDisplayName(target);
 
             sendCombatFeedback(player, result);
@@ -98,11 +135,33 @@ public final class CombatListener implements Listener {
 
         PlayerStats stats = playerStatService.recalculate(player);
         double defense = Math.max(0.0D, stats.get(StatType.DEFENSE));
-        double finalDamage = Math.max(1.0D, mob.damage() * (100.0D / (100.0D + defense)));
+        double finalDamage = calculateIncomingMobDamage(mob.damage(), defense);
 
         event.setCancelled(true);
         applyDirectDamage(player, finalDamage);
-        player.sendActionBar(Component.text(formatDamage(finalDamage) + " damage", NamedTextColor.RED));
+        sendIncomingMobFeedback(player, mob, mob.damage(), defense, finalDamage);
+    }
+
+    private void handleCustomMobProjectileDamage(EntityDamageByEntityEvent event, Projectile projectile, Player player) {
+        PersistentDataContainer data = projectile.getPersistentDataContainer();
+        String mobId = data.get(projectileMobIdKey, PersistentDataType.STRING);
+        if (mobId == null) {
+            return;
+        }
+
+        CustomMob mob = mobRegistry.getMob(mobId).orElse(null);
+        if (mob == null) {
+            return;
+        }
+
+        double baseDamage = data.getOrDefault(projectileDamageKey, PersistentDataType.DOUBLE, mob.damage());
+        PlayerStats stats = playerStatService.recalculate(player);
+        double defense = Math.max(0.0D, stats.get(StatType.DEFENSE));
+        double finalDamage = calculateIncomingMobDamage(baseDamage, defense);
+
+        event.setCancelled(true);
+        applyDirectDamage(player, finalDamage);
+        sendIncomingMobFeedback(player, mob, baseDamage, defense, finalDamage);
     }
 
     private void defeatCustomMob(Player player, LivingEntity target) {
@@ -115,6 +174,35 @@ public final class CombatListener implements Listener {
     private void applyDirectDamage(Player player, double finalDamage) {
         double health = player.getHealth();
         player.setHealth(Math.max(0.0D, health - finalDamage));
+    }
+
+    private double calculateIncomingMobDamage(double baseDamage, double defense) {
+        double minimumDamage = Math.max(0.0D, plugin.getConfig().getDouble("combat.minimum_damage", 1.0D));
+        return Math.max(minimumDamage, baseDamage * (100.0D / (100.0D + defense)));
+    }
+
+    private void applyCustomMobKnockback(Player attacker, LivingEntity target) {
+        double strength = Math.max(0.0D, plugin.getConfig().getDouble("combat.mob_knockback", 0.3D));
+        double vertical = Math.max(0.0D, plugin.getConfig().getDouble("combat.mob_knockback_vertical", 0.08D));
+        String mobId = customMobService.getCustomMobId(target);
+        if (mobId != null && mobId.toLowerCase(Locale.ROOT).contains("brute")) {
+            strength *= 0.55D;
+        }
+
+        Vector direction = target.getLocation().toVector().subtract(attacker.getLocation().toVector());
+        direction.setY(0.0D);
+        if (direction.lengthSquared() <= 0.0001D) {
+            direction = attacker.getLocation().getDirection().multiply(-1.0D);
+            direction.setY(0.0D);
+        }
+
+        if (direction.lengthSquared() <= 0.0001D) {
+            return;
+        }
+
+        Vector velocity = direction.normalize().multiply(strength);
+        velocity.setY(vertical);
+        target.setVelocity(target.getVelocity().add(velocity));
     }
 
     private boolean shouldIgnoreTarget(LivingEntity target) {
@@ -147,6 +235,22 @@ public final class CombatListener implements Listener {
         player.sendMessage(Component.text(" - Raw damage: " + formatStat(result.rawDamage()), NamedTextColor.GRAY));
         player.sendMessage(Component.text(" - Final damage: " + formatStat(result.finalDamage()), NamedTextColor.GRAY));
         player.sendMessage(Component.text(" - Crit: " + result.wasCrit(), NamedTextColor.GRAY));
+    }
+
+    private void sendIncomingMobFeedback(Player player, CustomMob mob, double baseDamage, double defense, double finalDamage) {
+        player.sendActionBar(Component.text(
+                "Hit by " + customMobService.getPlainDisplayName(mob.id()) + " for " + formatDamage(finalDamage) + " damage",
+                NamedTextColor.RED
+        ));
+
+        if (!combatDebugService.isEnabled(player)) {
+            return;
+        }
+
+        player.sendMessage(Component.text("Incoming mob damage:", NamedTextColor.GOLD));
+        player.sendMessage(Component.text(" - Mob base damage: " + formatStat(baseDamage), NamedTextColor.GRAY));
+        player.sendMessage(Component.text(" - Player defense: " + formatStat(defense), NamedTextColor.GRAY));
+        player.sendMessage(Component.text(" - Final damage: " + formatStat(finalDamage), NamedTextColor.GRAY));
     }
 
     private void spawnDamageIndicator(LivingEntity target, DamageResult result) {

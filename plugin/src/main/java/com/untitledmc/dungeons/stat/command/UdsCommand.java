@@ -2,6 +2,7 @@ package com.untitledmc.dungeons.stat.command;
 
 import com.untitledmc.dungeons.combat.CombatDebugService;
 import com.untitledmc.dungeons.item.registry.ItemRegistry;
+import com.untitledmc.dungeons.mob.MobRegistry;
 import com.untitledmc.dungeons.stat.PlayerStatService;
 import com.untitledmc.dungeons.stat.PlayerStats;
 import com.untitledmc.dungeons.stat.StatType;
@@ -21,17 +22,20 @@ import org.jetbrains.annotations.Nullable;
 public final class UdsCommand implements CommandExecutor, TabCompleter {
     private final JavaPlugin plugin;
     private final ItemRegistry itemRegistry;
+    private final MobRegistry mobRegistry;
     private final PlayerStatService playerStatService;
     private final CombatDebugService combatDebugService;
 
     public UdsCommand(
             JavaPlugin plugin,
             ItemRegistry itemRegistry,
+            MobRegistry mobRegistry,
             PlayerStatService playerStatService,
             CombatDebugService combatDebugService
     ) {
         this.plugin = plugin;
         this.itemRegistry = itemRegistry;
+        this.mobRegistry = mobRegistry;
         this.playerStatService = playerStatService;
         this.combatDebugService = combatDebugService;
     }
@@ -51,10 +55,11 @@ public final class UdsCommand implements CommandExecutor, TabCompleter {
         if (args[0].equalsIgnoreCase("reload")) {
             plugin.reloadConfig();
             itemRegistry.load();
+            mobRegistry.load();
             for (Player player : Bukkit.getOnlinePlayers()) {
                 playerStatService.recalculate(player);
             }
-            sender.sendMessage("UntitledDungeons config and custom items reloaded.");
+            sender.sendMessage("UntitledDungeons config, custom items, and custom mobs reloaded.");
             return true;
         }
 
