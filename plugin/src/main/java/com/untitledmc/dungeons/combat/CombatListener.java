@@ -119,6 +119,10 @@ public final class CombatListener implements Listener {
 
         if (customMobService.isCustomMob(target)) {
             event.setCancelled(true);
+            if (customMobService.isDeadOrDying(target)) {
+                return;
+            }
+
             if (!attackCooldownService.canAttack(player)) {
                 sendCooldownDebug(player);
                 return;
@@ -191,9 +195,15 @@ public final class CombatListener implements Listener {
 
     private void defeatCustomMob(Player player, LivingEntity target) {
         String mobId = customMobService.getCustomMobId(target);
+        CustomMob mob = mobRegistry.getMob(mobId).orElse(null);
+        if (mob == null || !customMobService.markDeadIfNeeded(target)) {
+            return;
+        }
+
         String displayName = customMobService.getPlainDisplayName(mobId);
-        target.remove();
+        customMobService.playDeathFeedback(target, mob);
         player.sendActionBar(Component.text("Defeated " + displayName + "!", NamedTextColor.GREEN));
+        customMobService.finishDeath(target);
     }
 
     private double calculateIncomingMobDamage(double baseDamage, double defense) {

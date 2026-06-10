@@ -4,4 +4,6 @@ combat:
   player_attack_cooldown_ms: 500
   mob_knockback: 0.3
   mob_knockback_vertical: 0.08
+  mob_death_feedback: true
+  mob_death_remove_delay_ticks: 10
   minimum_damage: 1.0
