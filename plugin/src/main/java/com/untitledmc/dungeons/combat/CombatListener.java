@@ -5,6 +5,7 @@ import com.untitledmc.dungeons.stat.PlayerStats;
 import com.untitledmc.dungeons.mob.CustomMob;
 import com.untitledmc.dungeons.mob.CustomMobService;
 import com.untitledmc.dungeons.mob.MobRegistry;
+import com.untitledmc.dungeons.reward.RewardService;
 import com.untitledmc.dungeons.stat.ManaService;
 import com.untitledmc.dungeons.stat.PlayerHealthService;
 import com.untitledmc.dungeons.stat.StatType;
@@ -43,6 +44,7 @@ public final class CombatListener implements Listener {
     private final CustomMobService customMobService;
     private final MobRegistry mobRegistry;
     private final PlayerDefeatService playerDefeatService;
+    private final RewardService rewardService;
     private final NamespacedKey projectileMobIdKey;
     private final NamespacedKey projectileDamageKey;
 
@@ -56,7 +58,8 @@ public final class CombatListener implements Listener {
             AttackCooldownService attackCooldownService,
             CustomMobService customMobService,
             MobRegistry mobRegistry,
-            PlayerDefeatService playerDefeatService
+            PlayerDefeatService playerDefeatService,
+            RewardService rewardService
     ) {
         this.plugin = plugin;
         this.playerStatService = playerStatService;
@@ -68,6 +71,7 @@ public final class CombatListener implements Listener {
         this.customMobService = customMobService;
         this.mobRegistry = mobRegistry;
         this.playerDefeatService = playerDefeatService;
+        this.rewardService = rewardService;
         this.projectileMobIdKey = new NamespacedKey(plugin, "custom_mob_projectile_id");
         this.projectileDamageKey = new NamespacedKey(plugin, "custom_mob_projectile_damage");
     }
@@ -75,6 +79,11 @@ public final class CombatListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
         if (event.getDamager() instanceof Player player) {
+            handlePlayerDamage(event, player);
+            return;
+        }
+
+        if (event.getDamager() instanceof Projectile projectile && projectile.getShooter() instanceof Player player) {
             handlePlayerDamage(event, player);
             return;
         }
@@ -219,7 +228,8 @@ public final class CombatListener implements Listener {
 
         String displayName = customMobService.getPlainDisplayName(mobId);
         customMobService.playDeathFeedback(target, mob);
-        player.sendActionBar(Component.text("Defeated " + displayName + "!", NamedTextColor.GREEN));
+        player.sendMessage(Component.text("Defeated " + displayName + "!", NamedTextColor.GREEN));
+        rewardService.handleMobKillReward(player, mob);
         customMobService.finishDeath(target);
     }
 

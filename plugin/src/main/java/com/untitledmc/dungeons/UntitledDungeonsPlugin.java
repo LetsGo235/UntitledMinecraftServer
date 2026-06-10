@@ -16,6 +16,8 @@ import com.untitledmc.dungeons.item.registry.ItemRegistry;
 import com.untitledmc.dungeons.mob.CustomMobService;
 import com.untitledmc.dungeons.mob.MobRegistry;
 import com.untitledmc.dungeons.mob.command.DMobCommand;
+import com.untitledmc.dungeons.profile.PlayerProfileService;
+import com.untitledmc.dungeons.reward.RewardService;
 import com.untitledmc.dungeons.stat.ActionBarService;
 import com.untitledmc.dungeons.stat.ManaService;
 import com.untitledmc.dungeons.stat.PlayerHealthService;
@@ -32,6 +34,7 @@ public final class UntitledDungeonsPlugin extends JavaPlugin {
     private ManaService manaService;
     private ActionBarService actionBarService;
     private CooldownService cooldownService;
+    private PlayerProfileService playerProfileService;
 
     @Override
     public void onEnable() {
@@ -60,12 +63,23 @@ public final class UntitledDungeonsPlugin extends JavaPlugin {
         abilityRegistry.registerDefaults();
         cooldownService = new CooldownService();
         CombatDebugService combatDebugService = new CombatDebugService();
+        playerProfileService = new PlayerProfileService(this);
+        RewardService rewardService = new RewardService(playerProfileService, combatDebugService);
         DamageCalculator damageCalculator = new DamageCalculator();
         AttackCooldownService attackCooldownService = new AttackCooldownService(this);
         CustomMobService customMobService = new CustomMobService(this, mobRegistry);
         PlayerDefeatService playerDefeatService = new PlayerDefeatService(this, playerHealthService, manaService);
 
-        UdsCommand udsCommand = new UdsCommand(this, itemRegistry, mobRegistry, playerStatService, playerHealthService, combatDebugService);
+        UdsCommand udsCommand = new UdsCommand(
+                this,
+                itemRegistry,
+                mobRegistry,
+                playerStatService,
+                playerHealthService,
+                combatDebugService,
+                playerProfileService,
+                rewardService
+        );
         PluginCommand command = getCommand("uds");
         if (command != null) {
             command.setExecutor(udsCommand);
@@ -101,7 +115,8 @@ public final class UntitledDungeonsPlugin extends JavaPlugin {
                         attackCooldownService,
                         customMobService,
                         mobRegistry,
-                        playerDefeatService
+                        playerDefeatService,
+                        rewardService
                 ),
                 this
         );
@@ -122,6 +137,9 @@ public final class UntitledDungeonsPlugin extends JavaPlugin {
         }
         if (manaService != null) {
             manaService.stop();
+        }
+        if (playerProfileService != null) {
+            playerProfileService.saveAll();
         }
         getLogger().info("UntitledDungeons has disabled.");
     }
