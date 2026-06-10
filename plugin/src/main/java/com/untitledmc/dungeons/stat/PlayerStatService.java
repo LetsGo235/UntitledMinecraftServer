@@ -7,8 +7,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.bukkit.NamespacedKey;
-import org.bukkit.attribute.Attribute;
-import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
@@ -16,9 +14,6 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
 public final class PlayerStatService {
-    private static final double MIN_PLAYER_MAX_HEALTH = 1.0D;
-    private static final double MAX_PLAYER_MAX_HEALTH = 200.0D;
-
     private final ItemRegistry itemRegistry;
     private final NamespacedKey itemIdKey;
     private final EnumMap<StatType, Double> baseStats = new EnumMap<>(StatType.class);
@@ -43,7 +38,6 @@ public final class PlayerStatService {
 
         PlayerStats snapshot = stats.copy();
         calculatedStats.put(player.getUniqueId(), snapshot);
-        syncMaxHealth(player, snapshot);
         return snapshot.copy();
     }
 
@@ -57,24 +51,6 @@ public final class PlayerStatService {
 
     public void clear(Player player) {
         calculatedStats.remove(player.getUniqueId());
-    }
-
-    public void syncMaxHealth(Player player, PlayerStats stats) {
-        if (player.isDead()) {
-            return;
-        }
-
-        AttributeInstance maxHealthAttribute = player.getAttribute(Attribute.MAX_HEALTH);
-        if (maxHealthAttribute == null) {
-            return;
-        }
-
-        double oldMaxHealth = Math.max(MIN_PLAYER_MAX_HEALTH, maxHealthAttribute.getValue());
-        double oldHealthRatio = Math.max(0.0D, Math.min(1.0D, player.getHealth() / oldMaxHealth));
-        double newMaxHealth = clamp(stats.get(StatType.HEALTH), MIN_PLAYER_MAX_HEALTH, MAX_PLAYER_MAX_HEALTH);
-
-        maxHealthAttribute.setBaseValue(newMaxHealth);
-        player.setHealth(clamp(newMaxHealth * oldHealthRatio, 0.0D, newMaxHealth));
     }
 
     private void addArmorStats(PlayerInventory inventory, PlayerStats stats) {
@@ -117,7 +93,4 @@ public final class PlayerStatService {
         baseStats.put(StatType.CRIT_DAMAGE, 50.0D);
     }
 
-    private double clamp(double value, double min, double max) {
-        return Math.max(min, Math.min(value, max));
-    }
 }

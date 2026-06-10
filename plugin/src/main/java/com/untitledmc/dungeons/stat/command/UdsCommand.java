@@ -3,6 +3,7 @@ package com.untitledmc.dungeons.stat.command;
 import com.untitledmc.dungeons.combat.CombatDebugService;
 import com.untitledmc.dungeons.item.registry.ItemRegistry;
 import com.untitledmc.dungeons.mob.MobRegistry;
+import com.untitledmc.dungeons.stat.PlayerHealthService;
 import com.untitledmc.dungeons.stat.PlayerStatService;
 import com.untitledmc.dungeons.stat.PlayerStats;
 import com.untitledmc.dungeons.stat.StatType;
@@ -24,6 +25,7 @@ public final class UdsCommand implements CommandExecutor, TabCompleter {
     private final ItemRegistry itemRegistry;
     private final MobRegistry mobRegistry;
     private final PlayerStatService playerStatService;
+    private final PlayerHealthService playerHealthService;
     private final CombatDebugService combatDebugService;
 
     public UdsCommand(
@@ -31,12 +33,14 @@ public final class UdsCommand implements CommandExecutor, TabCompleter {
             ItemRegistry itemRegistry,
             MobRegistry mobRegistry,
             PlayerStatService playerStatService,
+            PlayerHealthService playerHealthService,
             CombatDebugService combatDebugService
     ) {
         this.plugin = plugin;
         this.itemRegistry = itemRegistry;
         this.mobRegistry = mobRegistry;
         this.playerStatService = playerStatService;
+        this.playerHealthService = playerHealthService;
         this.combatDebugService = combatDebugService;
     }
 
@@ -58,6 +62,7 @@ public final class UdsCommand implements CommandExecutor, TabCompleter {
             mobRegistry.load();
             for (Player player : Bukkit.getOnlinePlayers()) {
                 playerStatService.recalculate(player);
+                playerHealthService.clampHealth(player);
             }
             sender.sendMessage("UntitledDungeons config, custom items, and custom mobs reloaded.");
             return true;
@@ -97,6 +102,7 @@ public final class UdsCommand implements CommandExecutor, TabCompleter {
             }
 
             playerStatService.recalculate(target);
+            playerHealthService.clampHealth(target);
             sender.sendMessage("Recalculated stats for " + target.getName() + ".");
             return true;
         }

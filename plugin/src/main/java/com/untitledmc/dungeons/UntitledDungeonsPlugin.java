@@ -3,6 +3,7 @@ package com.untitledmc.dungeons;
 import com.untitledmc.dungeons.ability.AbilityListener;
 import com.untitledmc.dungeons.ability.AbilityRegistry;
 import com.untitledmc.dungeons.ability.CooldownService;
+import com.untitledmc.dungeons.combat.AttackCooldownService;
 import com.untitledmc.dungeons.combat.CombatDebugService;
 import com.untitledmc.dungeons.combat.CombatListener;
 import com.untitledmc.dungeons.combat.DamageCalculator;
@@ -15,6 +16,7 @@ import com.untitledmc.dungeons.mob.MobRegistry;
 import com.untitledmc.dungeons.mob.command.DMobCommand;
 import com.untitledmc.dungeons.stat.ActionBarService;
 import com.untitledmc.dungeons.stat.ManaService;
+import com.untitledmc.dungeons.stat.PlayerHealthService;
 import com.untitledmc.dungeons.stat.PlayerStatListener;
 import com.untitledmc.dungeons.stat.PlayerStatService;
 import com.untitledmc.dungeons.stat.command.UdsCommand;
@@ -49,16 +51,18 @@ public final class UntitledDungeonsPlugin extends JavaPlugin {
         }
 
         PlayerStatService playerStatService = new PlayerStatService(itemRegistry, itemIdKey);
+        PlayerHealthService playerHealthService = new PlayerHealthService(playerStatService);
         manaService = new ManaService(this, playerStatService);
-        actionBarService = new ActionBarService(this, playerStatService, manaService);
+        actionBarService = new ActionBarService(this, playerHealthService, manaService);
         AbilityRegistry abilityRegistry = new AbilityRegistry();
         abilityRegistry.registerDefaults();
         cooldownService = new CooldownService();
         CombatDebugService combatDebugService = new CombatDebugService();
         DamageCalculator damageCalculator = new DamageCalculator();
+        AttackCooldownService attackCooldownService = new AttackCooldownService(this);
         CustomMobService customMobService = new CustomMobService(this, mobRegistry);
 
-        UdsCommand udsCommand = new UdsCommand(this, itemRegistry, mobRegistry, playerStatService, combatDebugService);
+        UdsCommand udsCommand = new UdsCommand(this, itemRegistry, mobRegistry, playerStatService, playerHealthService, combatDebugService);
         PluginCommand command = getCommand("uds");
         if (command != null) {
             command.setExecutor(udsCommand);
@@ -72,7 +76,7 @@ public final class UntitledDungeonsPlugin extends JavaPlugin {
         }
 
         getServer().getPluginManager().registerEvents(
-                new PlayerStatListener(this, playerStatService, manaService, combatDebugService),
+                new PlayerStatListener(this, playerStatService, playerHealthService, manaService, combatDebugService),
                 this
         );
         getServer().getPluginManager().registerEvents(new AbilityListener(
@@ -84,7 +88,17 @@ public final class UntitledDungeonsPlugin extends JavaPlugin {
                 cooldownService
         ), this);
         getServer().getPluginManager().registerEvents(
-                new CombatListener(this, playerStatService, damageCalculator, combatDebugService, customMobService, mobRegistry),
+                new CombatListener(
+                        this,
+                        playerStatService,
+                        playerHealthService,
+                        manaService,
+                        damageCalculator,
+                        combatDebugService,
+                        attackCooldownService,
+                        customMobService,
+                        mobRegistry
+                ),
                 this
         );
         manaService.start();

@@ -18,17 +18,20 @@ import org.bukkit.plugin.java.JavaPlugin;
 public final class PlayerStatListener implements Listener {
     private final JavaPlugin plugin;
     private final PlayerStatService playerStatService;
+    private final PlayerHealthService playerHealthService;
     private final ManaService manaService;
     private final CombatDebugService combatDebugService;
 
     public PlayerStatListener(
             JavaPlugin plugin,
             PlayerStatService playerStatService,
+            PlayerHealthService playerHealthService,
             ManaService manaService,
             CombatDebugService combatDebugService
     ) {
         this.plugin = plugin;
         this.playerStatService = playerStatService;
+        this.playerHealthService = playerHealthService;
         this.manaService = manaService;
         this.combatDebugService = combatDebugService;
     }
@@ -36,12 +39,14 @@ public final class PlayerStatListener implements Listener {
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         recalculateNow(event.getPlayer());
+        playerHealthService.setToMax(event.getPlayer());
         manaService.initialize(event.getPlayer());
     }
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         playerStatService.clear(event.getPlayer());
+        playerHealthService.clear(event.getPlayer());
         manaService.clear(event.getPlayer());
         combatDebugService.clear(event.getPlayer());
     }
@@ -88,6 +93,7 @@ public final class PlayerStatListener implements Listener {
 
     private void recalculateNow(Player player) {
         playerStatService.recalculate(player);
+        playerHealthService.clampHealth(player);
         manaService.clamp(player);
     }
 }

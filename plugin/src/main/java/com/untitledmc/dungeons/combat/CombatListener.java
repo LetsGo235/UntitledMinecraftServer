@@ -5,6 +5,8 @@ import com.untitledmc.dungeons.stat.PlayerStats;
 import com.untitledmc.dungeons.mob.CustomMob;
 import com.untitledmc.dungeons.mob.CustomMobService;
 import com.untitledmc.dungeons.mob.MobRegistry;
+import com.untitledmc.dungeons.stat.ManaService;
+import com.untitledmc.dungeons.stat.PlayerHealthService;
 import com.untitledmc.dungeons.stat.StatType;
 import java.util.Locale;
 import net.kyori.adventure.text.Component;
@@ -24,6 +26,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityShootBowEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -32,8 +35,11 @@ import org.bukkit.util.Vector;
 public final class CombatListener implements Listener {
     private final JavaPlugin plugin;
     private final PlayerStatService playerStatService;
+    private final PlayerHealthService playerHealthService;
+    private final ManaService manaService;
     private final DamageCalculator damageCalculator;
     private final CombatDebugService combatDebugService;
+    private final AttackCooldownService attackCooldownService;
     private final CustomMobService customMobService;
     private final MobRegistry mobRegistry;
     private final NamespacedKey projectileMobIdKey;
@@ -42,15 +48,21 @@ public final class CombatListener implements Listener {
     public CombatListener(
             JavaPlugin plugin,
             PlayerStatService playerStatService,
+            PlayerHealthService playerHealthService,
+            ManaService manaService,
             DamageCalculator damageCalculator,
             CombatDebugService combatDebugService,
+            AttackCooldownService attackCooldownService,
             CustomMobService customMobService,
             MobRegistry mobRegistry
     ) {
         this.plugin = plugin;
         this.playerStatService = playerStatService;
+        this.playerHealthService = playerHealthService;
+        this.manaService = manaService;
         this.damageCalculator = damageCalculator;
         this.combatDebugService = combatDebugService;
+        this.attackCooldownService = attackCooldownService;
         this.customMobService = customMobService;
         this.mobRegistry = mobRegistry;
         this.projectileMobIdKey = new NamespacedKey(plugin, "custom_mob_projectile_id");
@@ -95,15 +107,26 @@ public final class CombatListener implements Listener {
         data.set(projectileDamageKey, PersistentDataType.DOUBLE, mob.damage());
     }
 
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        attackCooldownService.clear(event.getPlayer());
+    }
+
     private void handlePlayerDamage(EntityDamageByEntityEvent event, Player player) {
         if (!(event.getEntity() instanceof LivingEntity target) || shouldIgnoreTarget(target)) {
             return;
         }
 
-        PlayerStats stats = playerStatService.recalculate(player);
-        DamageResult result = damageCalculator.calculate(stats);
         if (customMobService.isCustomMob(target)) {
             event.setCancelled(true);
+            if (!attackCooldownService.canAttack(player)) {
+                sendCooldownDebug(player);
+                return;
+            }
+
+            PlayerStats stats = playerStatService.recalculate(player);
+            DamageResult result = damageCalculator.calculate(stats);
+            attackCooldownService.markSuccessfulHit(player);
             customMobService.damageCustomMob(target, result.finalDamage());
             applyCustomMobKnockback(player, target);
             customMobService.updateMobDisplayName(target);
@@ -116,6 +139,8 @@ public final class CombatListener implements Listener {
             return;
         }
 
+        PlayerStats stats = playerStatService.recalculate(player);
+        DamageResult result = damageCalculator.calculate(stats);
         event.setDamage(result.finalDamage());
 
         sendCombatFeedback(player, result);
@@ -138,7 +163,7 @@ public final class CombatListener implements Listener {
         double finalDamage = calculateIncomingMobDamage(mob.damage(), defense);
 
         event.setCancelled(true);
-        applyDirectDamage(player, finalDamage);
+        playerHealthService.damage(player, finalDamage);
         sendIncomingMobFeedback(player, mob, mob.damage(), defense, finalDamage);
     }
 
@@ -160,7 +185,7 @@ public final class CombatListener implements Listener {
         double finalDamage = calculateIncomingMobDamage(baseDamage, defense);
 
         event.setCancelled(true);
-        applyDirectDamage(player, finalDamage);
+        playerHealthService.damage(player, finalDamage);
         sendIncomingMobFeedback(player, mob, baseDamage, defense, finalDamage);
     }
 
@@ -169,11 +194,6 @@ public final class CombatListener implements Listener {
         String displayName = customMobService.getPlainDisplayName(mobId);
         target.remove();
         player.sendActionBar(Component.text("Defeated " + displayName + "!", NamedTextColor.GREEN));
-    }
-
-    private void applyDirectDamage(Player player, double finalDamage) {
-        double health = player.getHealth();
-        player.setHealth(Math.max(0.0D, health - finalDamage));
     }
 
     private double calculateIncomingMobDamage(double baseDamage, double defense) {
@@ -237,9 +257,23 @@ public final class CombatListener implements Listener {
         player.sendMessage(Component.text(" - Crit: " + result.wasCrit(), NamedTextColor.GRAY));
     }
 
+    private void sendCooldownDebug(Player player) {
+        if (!combatDebugService.isEnabled(player)) {
+            return;
+        }
+
+        player.sendMessage(Component.text(
+                "Combat debug: hit blocked by attack cooldown ("
+                        + attackCooldownService.getRemainingCooldownMillis(player)
+                        + "ms remaining).",
+                NamedTextColor.GRAY
+        ));
+    }
+
     private void sendIncomingMobFeedback(Player player, CustomMob mob, double baseDamage, double defense, double finalDamage) {
         player.sendActionBar(Component.text(
-                "Hit by " + customMobService.getPlainDisplayName(mob.id()) + " for " + formatDamage(finalDamage) + " damage",
+                "Hit by " + customMobService.getPlainDisplayName(mob.id()) + " for " + formatDamage(finalDamage)
+                        + " damage   " + healthAndManaText(player),
                 NamedTextColor.RED
         ));
 
@@ -251,6 +285,18 @@ public final class CombatListener implements Listener {
         player.sendMessage(Component.text(" - Mob base damage: " + formatStat(baseDamage), NamedTextColor.GRAY));
         player.sendMessage(Component.text(" - Player defense: " + formatStat(defense), NamedTextColor.GRAY));
         player.sendMessage(Component.text(" - Final damage: " + formatStat(finalDamage), NamedTextColor.GRAY));
+        player.sendMessage(Component.text(
+                " - Custom HP: " + formatDamage(playerHealthService.getCurrentHealth(player))
+                        + "/" + formatDamage(playerHealthService.getMaxHealth(player)),
+                NamedTextColor.GRAY
+        ));
+    }
+
+    private String healthAndManaText(Player player) {
+        return "\u2764 HP: " + formatDamage(playerHealthService.getCurrentHealth(player))
+                + "/" + formatDamage(playerHealthService.getMaxHealth(player))
+                + "   \u2726 Mana: " + formatDamage(manaService.getCurrentMana(player))
+                + "/" + formatDamage(manaService.getMaxMana(player));
     }
 
     private void spawnDamageIndicator(LivingEntity target, DamageResult result) {

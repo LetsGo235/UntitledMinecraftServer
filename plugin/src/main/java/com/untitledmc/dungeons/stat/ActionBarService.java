@@ -2,21 +2,19 @@ package com.untitledmc.dungeons.stat;
 
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
-import org.bukkit.attribute.Attribute;
-import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 
 public final class ActionBarService {
     private final JavaPlugin plugin;
-    private final PlayerStatService playerStatService;
+    private final PlayerHealthService playerHealthService;
     private final ManaService manaService;
     private BukkitTask task;
 
-    public ActionBarService(JavaPlugin plugin, PlayerStatService playerStatService, ManaService manaService) {
+    public ActionBarService(JavaPlugin plugin, PlayerHealthService playerHealthService, ManaService manaService) {
         this.plugin = plugin;
-        this.playerStatService = playerStatService;
+        this.playerHealthService = playerHealthService;
         this.manaService = manaService;
     }
 
@@ -33,26 +31,14 @@ public final class ActionBarService {
 
     private void sendOnlinePlayerBars() {
         for (Player player : Bukkit.getOnlinePlayers()) {
-            PlayerStats stats = playerStatService.getStats(player);
-            int maxHealth = rounded(stats.get(StatType.HEALTH));
-            int currentHealth = currentDisplayHealth(player, maxHealth);
+            int currentHealth = rounded(playerHealthService.getCurrentHealth(player));
+            int maxHealth = rounded(playerHealthService.getMaxHealth(player));
             int currentMana = rounded(manaService.getCurrentMana(player));
             int maxMana = rounded(manaService.getMaxMana(player));
 
-            player.sendActionBar(Component.text("❤ HP: " + currentHealth + "/" + maxHealth
-                    + "   ✦ Mana: " + currentMana + "/" + maxMana));
+            player.sendActionBar(Component.text("\u2764 HP: " + currentHealth + "/" + maxHealth
+                    + "   \u2726 Mana: " + currentMana + "/" + maxMana));
         }
-    }
-
-    private int currentDisplayHealth(Player player, int maxHealth) {
-        if (maxHealth <= 0) {
-            return 0;
-        }
-
-        AttributeInstance maxHealthAttribute = player.getAttribute(Attribute.MAX_HEALTH);
-        double vanillaMaxHealth = maxHealthAttribute == null ? 20.0D : Math.max(1.0D, maxHealthAttribute.getValue());
-        double ratio = Math.max(0.0D, Math.min(1.0D, player.getHealth() / vanillaMaxHealth));
-        return (int) Math.ceil(maxHealth * ratio);
     }
 
     private int rounded(double value) {
