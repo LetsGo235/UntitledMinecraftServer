@@ -42,6 +42,7 @@ public final class CombatListener implements Listener {
     private final AttackCooldownService attackCooldownService;
     private final CustomMobService customMobService;
     private final MobRegistry mobRegistry;
+    private final PlayerDefeatService playerDefeatService;
     private final NamespacedKey projectileMobIdKey;
     private final NamespacedKey projectileDamageKey;
 
@@ -54,7 +55,8 @@ public final class CombatListener implements Listener {
             CombatDebugService combatDebugService,
             AttackCooldownService attackCooldownService,
             CustomMobService customMobService,
-            MobRegistry mobRegistry
+            MobRegistry mobRegistry,
+            PlayerDefeatService playerDefeatService
     ) {
         this.plugin = plugin;
         this.playerStatService = playerStatService;
@@ -65,6 +67,7 @@ public final class CombatListener implements Listener {
         this.attackCooldownService = attackCooldownService;
         this.customMobService = customMobService;
         this.mobRegistry = mobRegistry;
+        this.playerDefeatService = playerDefeatService;
         this.projectileMobIdKey = new NamespacedKey(plugin, "custom_mob_projectile_id");
         this.projectileDamageKey = new NamespacedKey(plugin, "custom_mob_projectile_damage");
     }
@@ -165,10 +168,17 @@ public final class CombatListener implements Listener {
         PlayerStats stats = playerStatService.recalculate(player);
         double defense = Math.max(0.0D, stats.get(StatType.DEFENSE));
         double finalDamage = calculateIncomingMobDamage(mob.damage(), defense);
+        double healthBefore = playerHealthService.getCurrentHealth(player);
+        double healthAfter = Math.max(0.0D, healthBefore - finalDamage);
+        boolean defeated = healthAfter <= 0.0D;
 
         event.setCancelled(true);
-        playerHealthService.damage(player, finalDamage);
-        sendIncomingMobFeedback(player, mob, mob.damage(), defense, finalDamage);
+        if (defeated) {
+            playerDefeatService.defeat(player);
+        } else {
+            playerHealthService.damage(player, finalDamage);
+        }
+        sendIncomingMobFeedback(player, mob, mob.damage(), defense, finalDamage, healthBefore, healthAfter, defeated);
     }
 
     private void handleCustomMobProjectileDamage(EntityDamageByEntityEvent event, Projectile projectile, Player player) {
@@ -187,10 +197,17 @@ public final class CombatListener implements Listener {
         PlayerStats stats = playerStatService.recalculate(player);
         double defense = Math.max(0.0D, stats.get(StatType.DEFENSE));
         double finalDamage = calculateIncomingMobDamage(baseDamage, defense);
+        double healthBefore = playerHealthService.getCurrentHealth(player);
+        double healthAfter = Math.max(0.0D, healthBefore - finalDamage);
+        boolean defeated = healthAfter <= 0.0D;
 
         event.setCancelled(true);
-        playerHealthService.damage(player, finalDamage);
-        sendIncomingMobFeedback(player, mob, baseDamage, defense, finalDamage);
+        if (defeated) {
+            playerDefeatService.defeat(player);
+        } else {
+            playerHealthService.damage(player, finalDamage);
+        }
+        sendIncomingMobFeedback(player, mob, baseDamage, defense, finalDamage, healthBefore, healthAfter, defeated);
     }
 
     private void defeatCustomMob(Player player, LivingEntity target) {
@@ -280,7 +297,16 @@ public final class CombatListener implements Listener {
         ));
     }
 
-    private void sendIncomingMobFeedback(Player player, CustomMob mob, double baseDamage, double defense, double finalDamage) {
+    private void sendIncomingMobFeedback(
+            Player player,
+            CustomMob mob,
+            double baseDamage,
+            double defense,
+            double finalDamage,
+            double healthBefore,
+            double healthAfter,
+            boolean defeated
+    ) {
         player.sendActionBar(Component.text(
                 "Hit by " + customMobService.getPlainDisplayName(mob.id()) + " for " + formatDamage(finalDamage)
                         + " damage   " + healthAndManaText(player),
@@ -295,6 +321,9 @@ public final class CombatListener implements Listener {
         player.sendMessage(Component.text(" - Mob base damage: " + formatStat(baseDamage), NamedTextColor.GRAY));
         player.sendMessage(Component.text(" - Player defense: " + formatStat(defense), NamedTextColor.GRAY));
         player.sendMessage(Component.text(" - Final damage: " + formatStat(finalDamage), NamedTextColor.GRAY));
+        player.sendMessage(Component.text(" - Current HP before hit: " + formatDamage(healthBefore), NamedTextColor.GRAY));
+        player.sendMessage(Component.text(" - HP after hit: " + formatDamage(healthAfter), NamedTextColor.GRAY));
+        player.sendMessage(Component.text(" - Defeated: " + defeated, NamedTextColor.GRAY));
         player.sendMessage(Component.text(
                 " - Custom HP: " + formatDamage(playerHealthService.getCurrentHealth(player))
                         + "/" + formatDamage(playerHealthService.getMaxHealth(player)),

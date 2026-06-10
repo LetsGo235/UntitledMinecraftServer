@@ -7,3 +7,6 @@ combat:
   mob_death_feedback: true
   mob_death_remove_delay_ticks: 10
   minimum_damage: 1.0
+  defeat_teleport_to_spawn: true
+  defeat_invulnerability_ticks: 60
+  defeat_reset_mana: true

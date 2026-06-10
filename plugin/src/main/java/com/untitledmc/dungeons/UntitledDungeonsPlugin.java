@@ -7,6 +7,8 @@ import com.untitledmc.dungeons.combat.AttackCooldownService;
 import com.untitledmc.dungeons.combat.CombatDebugService;
 import com.untitledmc.dungeons.combat.CombatListener;
 import com.untitledmc.dungeons.combat.DamageCalculator;
+import com.untitledmc.dungeons.combat.PlayerDefeatListener;
+import com.untitledmc.dungeons.combat.PlayerDefeatService;
 import com.untitledmc.dungeons.item.ItemBuilder;
 import com.untitledmc.dungeons.item.ItemLoreRenderer;
 import com.untitledmc.dungeons.item.command.DItemCommand;
@@ -61,6 +63,7 @@ public final class UntitledDungeonsPlugin extends JavaPlugin {
         DamageCalculator damageCalculator = new DamageCalculator();
         AttackCooldownService attackCooldownService = new AttackCooldownService(this);
         CustomMobService customMobService = new CustomMobService(this, mobRegistry);
+        PlayerDefeatService playerDefeatService = new PlayerDefeatService(this, playerHealthService, manaService);
 
         UdsCommand udsCommand = new UdsCommand(this, itemRegistry, mobRegistry, playerStatService, playerHealthService, combatDebugService);
         PluginCommand command = getCommand("uds");
@@ -97,8 +100,13 @@ public final class UntitledDungeonsPlugin extends JavaPlugin {
                         combatDebugService,
                         attackCooldownService,
                         customMobService,
-                        mobRegistry
+                        mobRegistry,
+                        playerDefeatService
                 ),
+                this
+        );
+        getServer().getPluginManager().registerEvents(
+                new PlayerDefeatListener(this, playerHealthService, manaService, playerDefeatService),
                 this
         );
         manaService.start();

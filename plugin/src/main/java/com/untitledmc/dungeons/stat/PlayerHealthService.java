@@ -1,7 +1,9 @@
 package com.untitledmc.dungeons.stat;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
@@ -12,6 +14,7 @@ public final class PlayerHealthService {
 
     private final PlayerStatService playerStatService;
     private final Map<UUID, Double> currentHealth = new HashMap<>();
+    private final Set<UUID> defeatedPlayers = new HashSet<>();
 
     public PlayerHealthService(PlayerStatService playerStatService) {
         this.playerStatService = playerStatService;
@@ -58,6 +61,25 @@ public final class PlayerHealthService {
         syncVanillaHealth(player);
     }
 
+    public void resetAfterDefeat(Player player) {
+        currentHealth.put(player.getUniqueId(), getMaxHealth(player));
+        syncVanillaHealth(player);
+    }
+
+    public boolean isDefeated(Player player) {
+        return defeatedPlayers.contains(player.getUniqueId());
+    }
+
+    public void setDefeated(Player player, boolean defeated) {
+        UUID playerId = player.getUniqueId();
+        if (defeated) {
+            defeatedPlayers.add(playerId);
+            return;
+        }
+
+        defeatedPlayers.remove(playerId);
+    }
+
     public void clampHealth(Player player) {
         if (player.isDead()) {
             return;
@@ -76,6 +98,7 @@ public final class PlayerHealthService {
 
     public void clear(Player player) {
         currentHealth.remove(player.getUniqueId());
+        defeatedPlayers.remove(player.getUniqueId());
     }
 
     public void syncVanillaHealth(Player player) {
@@ -91,7 +114,7 @@ public final class PlayerHealthService {
         double maxHealth = getMaxHealth(player);
         double customHealth = currentHealth.getOrDefault(player.getUniqueId(), maxHealth);
         if (customHealth <= 0.0D) {
-            player.setHealth(0.0D);
+            player.setHealth(VANILLA_MAX_HEALTH);
             return;
         }
 

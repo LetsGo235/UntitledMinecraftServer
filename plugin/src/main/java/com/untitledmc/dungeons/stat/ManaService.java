@@ -35,6 +35,10 @@ public final class ManaService {
         currentMana.put(player.getUniqueId(), getMaxMana(player));
     }
 
+    public void setToMax(Player player) {
+        currentMana.put(player.getUniqueId(), getMaxMana(player));
+    }
+
     public void clamp(Player player) {
         UUID playerId = player.getUniqueId();
         double maxMana = getMaxMana(player);
