@@ -1,7 +1,10 @@
 ember_blade:
+  item_type: WEAPON
   material: DIAMOND_SWORD
   display_name: "&6Ember Blade"
   rarity: RARE
+  stackable: false
+  max_stack_size: 1
   stats:
     damage: 35
     strength: 20
@@ -14,3 +17,46 @@ ember_blade:
   lore:
     - "&7A blade forged in the first dungeon."
     - "&8Ability data exists, but does not activate yet."
+
+cinder_shard:
+  item_type: MATERIAL
+  material: BLAZE_POWDER
+  display_name: "&cCinder Shard"
+  rarity: COMMON
+  stackable: true
+  max_stack_size: 64
+  lore:
+    - "&7A warm shard from the Cinder Crypts."
+    - "&7Used to craft dungeon gear."
+
+charred_bone:
+  item_type: MATERIAL
+  material: BONE
+  display_name: "&8Charred Bone"
+  rarity: COMMON
+  stackable: true
+  max_stack_size: 64
+  lore:
+    - "&7A brittle bone scorched by dungeon fire."
+
+ember_talisman:
+  item_type: TALISMAN
+  material: AMETHYST_SHARD
+  display_name: "&6Ember Talisman"
+  rarity: UNCOMMON
+  stackable: false
+  stats:
+    strength: 5
+    intelligence: 10
+  lore:
+    - "&7A small charm pulsing with heat."
+
+cinder_key:
+  item_type: KEY
+  material: TRIPWIRE_HOOK
+  display_name: "&6Cinder Key"
+  rarity: RARE
+  stackable: true
+  max_stack_size: 16
+  lore:
+    - "&7Used to unlock sealed Cinder Crypt doors."

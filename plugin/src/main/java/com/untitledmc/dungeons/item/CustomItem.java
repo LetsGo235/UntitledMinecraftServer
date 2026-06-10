@@ -11,6 +11,9 @@ public final class CustomItem {
     private final Material material;
     private final String displayName;
     private final String rarity;
+    private final ItemType itemType;
+    private final boolean stackable;
+    private final int maxStackSize;
     private final Map<String, Integer> stats;
     private final Ability ability;
     private final List<String> flavorLore;
@@ -20,6 +23,9 @@ public final class CustomItem {
             Material material,
             String displayName,
             String rarity,
+            ItemType itemType,
+            boolean stackable,
+            int maxStackSize,
             Map<String, Integer> stats,
             Ability ability,
             List<String> flavorLore
@@ -28,6 +34,9 @@ public final class CustomItem {
         this.material = material;
         this.displayName = displayName;
         this.rarity = rarity;
+        this.itemType = itemType;
+        this.stackable = stackable;
+        this.maxStackSize = maxStackSize;
         this.stats = Collections.unmodifiableMap(new LinkedHashMap<>(stats));
         this.ability = ability;
         this.flavorLore = List.copyOf(flavorLore);
@@ -47,6 +56,18 @@ public final class CustomItem {
 
     public String rarity() {
         return rarity;
+    }
+
+    public ItemType itemType() {
+        return itemType;
+    }
+
+    public boolean stackable() {
+        return stackable;
+    }
+
+    public int maxStackSize() {
+        return maxStackSize;
     }
 
     public Map<String, Integer> stats() {

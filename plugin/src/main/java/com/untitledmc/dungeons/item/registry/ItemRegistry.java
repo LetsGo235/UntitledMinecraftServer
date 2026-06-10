@@ -1,6 +1,7 @@
 package com.untitledmc.dungeons.item.registry;
 
 import com.untitledmc.dungeons.item.CustomItem;
+import com.untitledmc.dungeons.item.ItemType;
 import java.io.File;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -64,6 +65,10 @@ public final class ItemRegistry {
         return List.copyOf(items.keySet());
     }
 
+    public Collection<CustomItem> items() {
+        return List.copyOf(items.values());
+    }
+
     private CustomItem parseItem(String itemId, ConfigurationSection section) {
         String normalizedId = normalizeId(itemId);
         Material material = Material.matchMaterial(requireString(section, "material"));
@@ -75,9 +80,45 @@ public final class ItemRegistry {
         String rarity = section.getString("rarity", "COMMON");
         Map<String, Integer> stats = parseStats(section.getConfigurationSection("stats"));
         CustomItem.Ability ability = parseAbility(section.getConfigurationSection("ability"));
+        ItemType itemType = parseItemType(section.getString("item_type"), stats, ability);
+        boolean stackable = section.getBoolean("stackable", false);
+        int defaultMaxStackSize = stackable ? material.getMaxStackSize() : 1;
+        int maxStackSize = section.getInt("max_stack_size", defaultMaxStackSize);
+        if (!stackable) {
+            maxStackSize = 1;
+        } else if (maxStackSize < 1 || maxStackSize > 99) {
+            throw new IllegalArgumentException("max_stack_size must be between 1 and 99");
+        }
         List<String> lore = section.getStringList("lore");
 
-        return new CustomItem(normalizedId, material, displayName, rarity, stats, ability, lore);
+        return new CustomItem(
+                normalizedId,
+                material,
+                displayName,
+                rarity,
+                itemType,
+                stackable,
+                maxStackSize,
+                stats,
+                ability,
+                lore
+        );
+    }
+
+    private ItemType parseItemType(
+            String configuredType,
+            Map<String, Integer> stats,
+            CustomItem.Ability ability
+    ) {
+        if (configuredType == null || configuredType.isBlank()) {
+            return stats.containsKey("damage") || ability != null ? ItemType.WEAPON : ItemType.MISC;
+        }
+
+        try {
+            return ItemType.valueOf(configuredType.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException("unknown item_type '" + configuredType + "'");
+        }
     }
 
     private Map<String, Integer> parseStats(ConfigurationSection section) {

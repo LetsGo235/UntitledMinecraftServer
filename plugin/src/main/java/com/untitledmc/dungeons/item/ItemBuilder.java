@@ -15,7 +15,12 @@ public final class ItemBuilder {
     }
 
     public ItemStack build(CustomItem item) {
-        ItemStack stack = new ItemStack(item.material());
+        return build(item, 1);
+    }
+
+    public ItemStack build(CustomItem item, int amount) {
+        int stackAmount = Math.max(1, Math.min(amount, item.maxStackSize()));
+        ItemStack stack = new ItemStack(item.material(), stackAmount);
         ItemMeta meta = stack.getItemMeta();
         if (meta == null) {
             return stack;
@@ -23,6 +28,7 @@ public final class ItemBuilder {
 
         meta.setDisplayName(loreRenderer.color(item.displayName()));
         meta.setLore(loreRenderer.render(item));
+        meta.setMaxStackSize(item.maxStackSize());
         meta.getPersistentDataContainer().set(itemIdKey, PersistentDataType.STRING, item.id());
         stack.setItemMeta(meta);
         return stack;
